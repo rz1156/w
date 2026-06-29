@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyber Camera Interface - AI Tracker</title>
+    <style>
+        /* --- CORE CONFIGURATION & RESET --- */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #050508;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #ffffff;
+        }
+
+        /* --- BACKGROUND PARTICLES & GRADIENT --- */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .animated-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            background: radial-gradient(circle at 50% 50%, #111222 0%, #050508 100%);
+            overflow: hidden;
+        }
+
+        .animated-bg::after {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background: conic-gradient(from 0deg at 50% 50%, transparent 0%, rgba(255, 255, 255, 0.02) 25%, transparent 50%, rgba(255, 255, 255, 0.02) 75%, transparent 100%);
+            animation: spinBg 40s linear infinite;
+        }
+
+        @keyframes spinBg {
+            100% { transform: rotate(360deg); }
+        }
+
+        /* --- CONTAINER UTILITIES --- */
+        .app-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            perspective: 1000px;
+        }
+
+        /* --- GLASSMORPHISM CARD (LANDING) --- */
+        .glass-card {
+            background: rgba(15, 18, 36, 0.4);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 32px;
+            padding: 48px;
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 24px 50px rgba(0, 0, 0, 0.5), 0 0 40px rgba(255, 255, 255, 0.03);
+            transform: translateZ(0);
+            transition: opacity 0.6s cubic-bezier(0.25, 1, 0.5, 1), transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+            will-change: transform, opacity;
+            animation: floatingCard 6s ease-in-out infinite;
+        }
+
+        .glass-card.fade-out {
+            opacity: 0;
+            transform: scale(0.9) translateZ(-100px);
+            pointer-events: none;
+        }
+
+        @keyframes floatingCard {
+            0%, 100% { transform: translateY(0px) rotateX(0deg); }
+            50% { transform: translateY(-10px) rotateX(1deg); }
+        }
+
+        /* --- LOGO & TYPOGRAPHY --- */
+        .logo-box {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 24px;
+            animation: pulseGlow 3s infinite ease-in-out;
+        }
+
+        .logo-box svg {
+            width: 64px;
+            height: 64px;
+            fill: #ffffff;
+            filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.6));
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            background: linear-gradient(180deg, #ffffff 0%, #a0a5c0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            font-size: 0.9rem;
+            color: #707590;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 40px;
+        }
+
+        /* --- PREMIUM BUTTON CONFIGURATION --- */
+        .btn-cyber {
+            position: relative;
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            outline: none;
+            padding: 18px 36px;
+            border-radius: 16px;
+            color: #ffffff;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            cursor: pointer;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
+            will-change: transform, box-shadow;
+        }
+
+        /* Custom RGB Border simulation */
+        .btn-cyber::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: none;
+        }
+
+        .btn-cyber:hover::before {
+            left: 100%;
+            transition: 0.8s ease-in-out;
+        }
+
+        .btn-cyber:hover {
+            transform: scale(1.05);
+            background: rgba(255, 255, 255, 0.95);
+            color: #000000;
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.8), 0 0 10px rgba(255,255,255,0.4);
+        }
+
+        .btn-cyber:active {
+            transform: scale(0.98);
+        }
+
+        /* Ripple ripple implementation */
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.4);
+            transform: scale(0);
+            animation: rippleEffect 0.6s linear;
+            pointer-events: none;
+        }
+        @keyframes rippleEffect {
+            to { transform: scale(4); opacity: 0; }
+        }
+
+        /* --- MAIN INTERFACE CAMERA (HUD VIEW) --- */
+        .camera-interface {
+            position: absolute;
+            width: 90%;
+            max-width: 1000px;
+            aspect-ratio: 16 / 9;
+            background: rgba(5, 6, 12, 0.85);
+            border-radius: 24px;
+            overflow: hidden;
+            opacity: 0;
+            transform: scale(0.95) translateZ(-50px);
+            pointer-events: none;
+            transition: opacity 0.8s cubic-bezier(0.25, 1, 0.5, 1), transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: 0 0 60px rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            will-change: transform, opacity;
+        }
+
+        .camera-interface.fade-in {
+            opacity: 1;
+            transform: scale(1) translateZ(0);
+            pointer-events: auto;
+        }
+
+        /* Cinematic Blur Overlay Engine */
+        .camera-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: filter 300ms ease-out;
+            will-change: filter;
+        }
+
+        /* Keadaan terfilter sinematik saat peace gesture terdeteksi */
+        .camera-wrapper.cinema-blur {
+            filter: blur(14px) brightness(0.75) contrast(1.25);
+        }
+
+        video#webcam {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Mirror view */
+            background-color: #000;
+        }
+
+        canvas#tracking-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 3;
+            transform: scaleX(-1); /* Match mirrored video */
+            pointer-events: none;
+        }
+
+        /* --- HUD LAYER ARCHITECTURE --- */
+        .hud-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 4;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 24px;
+            font-family: monospace;
+            font-size: 11px;
+            letter-spacing: 2px;
+            color: rgba(255, 255, 255, 0.85);
+            text-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
+        }
+
+        /* Cyber Breathing Outer Box Frame */
+        .hud-frame-container {
+            position: absolute;
+            top: 15px; left: 15px; right: 15px; bottom: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            pointer-events: none;
+            z-index: 5;
+            animation: breathingGlow 4s ease-in-out infinite;
+        }
+
+        @keyframes breathingGlow {
+            0%, 100% { border-color: rgba(255, 255, 255, 0.1); box-shadow: inset 0 0 15px rgba(255, 255, 255, 0.02); }
+            50% { border-color: rgba(255, 255, 255, 0.3); box-shadow: inset 0 0 25px rgba(255, 255, 255, 0.08); }
+        }
+
+        /* HUD Corners */
+        .hud-corner {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border: 2px solid transparent;
+            animation: cornerPulse 4s ease-in-out infinite;
+        }
+        .top-left     { top: -2px; left: -2px; border-top-color: #fff; border-left-color: #fff; }
+        .top-right    { top: -2px; right: -2px; border-top-color: #fff; border-right-color: #fff; }
+        .bottom-left  { bottom: -2px; left: -2px; border-bottom-color: #fff; border-left-color: #fff; }
+        .bottom-right { bottom: -2px; right: -2px; border-bottom-color: #fff; border-right-color: #fff; }
+
+        @keyframes cornerPulse {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.02); }
+        }
+
+        /* Scanline Overlay */
+        .scanlines {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 4px, 6px 100%;
+            z-index: 6;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        .scan-line-effector {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 4px;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.2), rgba(255,255,255,0));
+            animation: scanMove 6s linear infinite;
+            z-index: 6;
+        }
+
+        @keyframes scanMove {
+            0% { top: -5%; }
+            100% { top: 105%; }
+        }
+
+        /* Row layouts for data indicators */
+        .hud-header, .hud-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            z-index: 7;
+        }
+
+        .hud-group {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .rec-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: bold;
+        }
+
+        .rec-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #ff3333;
+            box-shadow: 0 0 8px #ff3333;
+            animation: blink 1.5s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 1; }
+        }
+
+        /* Status & Gesture displays */
+        .status-box {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 8px 14px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .gesture-active {
+            color: #ffffff;
+            font-weight: bold;
+            transition: color 0.2s;
+        }
+
+        .gesture-active.detected {
+            color: #00ffaa;
+            text-shadow: 0 0 10px rgba(0, 255, 170, 0.6);
+        }
+
+        /* Crosshair in Center */
+        .hud-crosshair {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 40px; height: 40px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 5;
+            opacity: 0.3;
+        }
+
+        .hud-crosshair::before, .hud-crosshair::after {
+            content: ''; position: absolute; background: #fff;
+        }
+        .hud-crosshair::before { top: 19px; left: 0; width: 40px; height: 2px; }
+        .hud-crosshair::after { top: 0; left: 19px; width: 2px; height: 40px; }
+
+        /* --- LOADING LAYER HUD --- */
+        .loading-hud {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #050508;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-family: monospace;
+            gap: 12px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+
+        .loading-hud.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .loading-terminal {
+            width: 280px;
+            text-align: left;
+            font-size: 11px;
+            color: rgba(255,255,255,0.7);
+            line-height: 1.8;
+        }
+
+        .terminal-line {
+            opacity: 0;
+            transform: translateY(4px);
+            transition: all 0.3s ease;
+        }
+
+        .terminal-line.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* --- ERROR INTERFACE --- */
+        .error-panel {
+            position: absolute;
+            background: rgba(20, 10, 15, 0.95);
+            border: 1px solid #ff3355;
+            border-radius: 20px;
+            padding: 32px;
+            text-align: center;
+            z-index: 12;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 0 40px rgba(255, 51, 85, 0.15);
+            opacity: 0;
+            transform: scale(0.9) translateY(10px);
+            pointer-events: none;
+            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .error-panel.active {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+            pointer-events: auto;
+        }
+
+        .error-icon {
+            width: 48px;
+            height: 48px;
+            stroke: #ff3355;
+            margin-bottom: 16px;
+            filter: drop-shadow(0 0 8px rgba(255,51,85,0.4));
+        }
+
+        /* --- VIGNETTE EFFECT LAYER --- */
+        .vignette-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            box-shadow: inset 0 0 100px rgba(0,0,0,0.6);
+            z-index: 7;
+            pointer-events: none;
+            transition: box-shadow 300ms ease;
+        }
+        .camera-wrapper.cinema-blur .vignette-layer {
+            box-shadow: inset 0 0 180px rgba(0,0,0,0.9);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="animated-bg"></div>
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="app-container">
+
+        <div class="glass-card" id="landing-card">
+            <div class="logo-box">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                </svg>
+            </div>
+            <h1>OmniVision AI</h1>
+            <p class="subtitle">Hand Tracking HUD System</p>
+            <button class="btn-cyber" id="btn-start">📷 Open Camera</button>
+        </div>
+
+        <div class="camera-interface" id="camera-hud">
+            <div class="camera-wrapper" id="cam-wrapper">
+                <video id="webcam" autoplay playsinline muted></video>
+                <canvas id="tracking-canvas"></canvas>
+                <div class="vignette-layer"></div>
+            </div>
+
+            <div class="hud-frame-container">
+                <div class="hud-corner top-left"></div>
+                <div class="hud-corner top-right"></div>
+                <div class="hud-corner bottom-left"></div>
+                <div class="hud-corner bottom-right"></div>
+            </div>
+            <div class="scanlines"></div>
+            <div class="scan-line-effector"></div>
+            <div class="hud-crosshair"></div>
+
+            <div class="hud-overlay">
+                <div class="hud-header">
+                    <div class="hud-group">
+                        <div class="rec-indicator"><div class="rec-dot"></div>REC</div>
+                        <div>SYS: <span style="color:#00ffaa;">ONLINE</span></div>
+                    </div>
+                    <div class="status-box">
+                        AI TRK: <span style="color:#00ffaa;">ACTIVE</span>
+                    </div>
+                </div>
+
+                <div class="hud-footer">
+                    <div class="hud-group">
+                        <div class="status-box">FPS: <span id="fps-counter">60</span></div>
+                        <div class="status-box">FEED: <span style="color:rgba(255,255,255,0.6);">16:9 RAW</span></div>
+                    </div>
+                    <div class="status-box" style="text-align: right; min-width: 210px;">
+                        <div>STATUS: <span id="hud-status-text" style="color:#00ffaa;">READY</span></div>
+                        <div style="margin-top: 4px;">GESTURE: <span id="hud-gesture-text" class="gesture-active">NONE</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="loading-hud" id="loading-overlay">
+                <div class="loading-terminal" id="terminal-box">
+                    <div class="terminal-line">&gt; INITIALIZING CAMERA SYSTEM...</div>
+                    <div class="terminal-line">&gt; ESTABLISHING HARDWARE LINK...</div>
+                    <div class="terminal-line">&gt; RETRIEVING MEDIAPAPI AI WEIGHTS...</div>
+                    <div class="terminal-line">&gt; CORE CALIBRATION IN PROGRESS...</div>
+                    <div class="terminal-line" style="color:#00ffaa;">&gt; SYSTEM ONLINE. LAUNCHING CAPTURE.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="error-panel" id="error-card">
+            <svg class="error-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            <h3 style="margin-bottom: 10px; font-weight: 700; letter-spacing: 1px;">Camera Permission Required</h3>
+            <p style="color: #a0a5c0; font-size: 13px; margin-bottom: 24px; line-height: 1.5;">Akses kamera ditolak atau tidak tersedia. Sistem membutuhkan izin kamera untuk memproses pelacakan AI secara real-time.</p>
+            <button class="btn-cyber" id="btn-retry" style="padding: 12px 28px; font-size: 12px;">Try Again</button>
+        </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/vision_bundle.js" crossorigin="anonymous"></script>
+
+    <script>
+        /**
+         * GLOBAL ENGINE OBJECT DEFINITIONS
+         */
+        const CONFIG = {
+            particleCount: 75,
+            trailMaxLength: 9,
+            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker_full/float16/latest/hand_landmarker_full.task",
+            wasmLoaderPath: "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm"
+        };
+
+        const DOM = {
+            btnStart: document.getElementById('btn-start'),
+            btnRetry: document.getElementById('btn-retry'),
+            landingCard: document.getElementById('landing-card'),
+            cameraHud: document.getElementById('camera-hud'),
+            loadingOverlay: document.getElementById('loading-overlay'),
+            errorCard: document.getElementById('error-card'),
+            terminalBox: document.getElementById('terminal-box'),
+            webcam: document.getElementById('webcam'),
+            trackingCanvas: document.getElementById('tracking-canvas'),
+            camWrapper: document.getElementById('cam-wrapper'),
+            fpsCounter: document.getElementById('fps-counter'),
+            hudGestureText: document.getElementById('hud-gesture-text'),
+            hudStatusText: document.getElementById('hud-status-text'),
+            bgCanvas: document.getElementById('bg-canvas')
+        };
+
+        let state = {
+            handLandmarker: null,
+            running: false,
+            lastVideoTime: -1,
+            fps: 0,
+            frameCount: 0,
+            lastFpsUpdate: 0,
+            fingerTrails: Array.from({ length: 5 }, () => []) // Trails for thumb, index, middle, ring, pinky tips
+        };
+
+        // Initialize Canvas Real-Time Render Mechanics
+        const ctx = DOM.trackingCanvas.getContext('2d');
+        const bgCtx = DOM.bgCanvas.getContext('2d');
+        let bgParticles = [];
+
+        /**
+         * HIGH-PERFORMANCE AMBIENT BACKGROUND PARTICLES
+         */
+        function initBackground() {
+            resizeBgCanvas();
+            window.addEventListener('resize', resizeBgCanvas);
+
+            for (let i = 0; i < CONFIG.particleCount; i++) {
+                bgParticles.push({
+                    x: Math.random() * DOM.bgCanvas.width,
+                    y: Math.random() * DOM.bgCanvas.height,
+                    radius: Math.random() * 1.5 + 0.5,
+                    vx: (Math.random() - 0.5) * 0.3,
+                    vy: (Math.random() - 0.5) * 0.3,
+                    alpha: Math.random() * 0.5 + 0.1,
+                    depth: Math.random() // Used for multi-depth scaling parallax
+                });
+            }
+        }
+
+        function resizeBgCanvas() {
+            DOM.bgCanvas.width = window.innerWidth;
+            DOM.bgCanvas.height = window.innerHeight;
+        }
+
+        function animateBackground() {
+            bgCtx.clearRect(0, 0, DOM.bgCanvas.width, DOM.bgCanvas.height);
+            
+            for (let p of bgParticles) {
+                p.x += p.vx * (1 + p.depth);
+                p.y += p.vy * (1 + p.depth);
+
+                if (p.x < 0) p.x = DOM.bgCanvas.width;
+                if (p.x > DOM.bgCanvas.width) p.x = 0;
+                if (p.y < 0) p.y = DOM.bgCanvas.height;
+                if (p.y > DOM.bgCanvas.height) p.y = 0;
+
+                bgCtx.beginPath();
+                bgCtx.arc(p.x, p.y, p.radius * (1 + p.depth * 0.5), 0, Math.PI * 2);
+                bgCtx.fillStyle = `rgba(255, 255, 255, ${p.alpha})`;
+                bgCtx.shadowBlur = 4;
+                bgCtx.shadowColor = "#ffffff";
+                bgCtx.fill();
+            }
+            bgCtx.shadowBlur = 0; // Reset tracking shadow overheads
+            requestAnimationFrame(animateBackground);
+        }
+
+        /**
+         * RIPPLE EFFECT UTILITY ON BUTTONS
+         */
+        function createRipple(event) {
+            const button = event.currentTarget;
+            const circle = document.createElement("span");
+            const diameter = Math.max(button.clientWidth, button.clientHeight);
+            const radius = diameter / 2;
+
+            const rect = button.getBoundingClientRect();
+            circle.style.width = circle.style.height = `${diameter}px`;
+            circle.style.left = `${event.clientX - rect.left - radius}px`;
+            circle.style.top = `${event.clientY - rect.top - radius}px`;
+            circle.classList.add("ripple");
+
+            const priorRipple = button.getElementsByClassName("ripple")[0];
+            if (priorRipple) priorRipple.remove();
+
+            button.appendChild(circle);
+        }
+
+        DOM.btnStart.addEventListener('click', (e) => {
+            createRipple(e);
+            setTimeout(transitionToCameraView, 350);
+        });
+
+        DOM.btnRetry.addEventListener('click', (e) => {
+            createRipple(e);
+            DOM.errorCard.classList.remove('active');
+            setTimeout(transitionToCameraView, 200);
+        });
+
+        /**
+         * HUD VIEW STATE ROUTER INTERFACES
+         */
+        async function transitionToCameraView() {
+            // Hide parent glass cards gracefully
+            DOM.landingCard.classList.add('fade-out');
+            
+            // Invoke HUD deployment frame & initial sequencing overlays
+            DOM.cameraHud.classList.add('fade-in');
+            DOM.loadingOverlay.classList.add('active');
+
+            try {
+                await executeTerminalSequence();
+                await initializeMediaPipeAndCamera();
+            } catch (err) {
+                console.error("System pipeline breakdown: ", err);
+                showSystemError();
+            }
+        }
+
+        function showSystemError() {
+            DOM.loadingOverlay.classList.remove('active');
+            DOM.cameraHud.classList.remove('fade-in');
+            DOM.landingCard.classList.remove('fade-out');
+            DOM.errorCard.classList.add('active');
+        }
+
+        /**
+         * TERMINAL SIMULATOR SEQ PROCESSOR
+         */
+        function executeTerminalSequence() {
+            return new Promise((resolve) => {
+                const lines = DOM.terminalBox.querySelectorAll('.terminal-line');
+                let currentLineIndex = 0;
+
+                function showNextLine() {
+                    if (currentLineIndex < lines.length) {
+                        lines[currentLineIndex].classList.add('visible');
+                        currentLineIndex++;
+                        setTimeout(showNextLine, 450); // Fluid pipeline stagger delays
+                    } else {
+                        setTimeout(resolve, 300);
+                    }
+                }
+                showNextLine();
+            });
+        }
+
+        /**
+         * ENGINE SYSTEM: MEDIAPAPE + WEBCAM SUBSYSTEM INITIALIZATION
+         */
+        async function initializeMediaPipeAndCamera() {
+            try {
+                // Initialize modern CDN Fileset Resolvers for structural background execution
+                const vision = await admission.FilesetResolver.forVisionTasks(CONFIG.wasmLoaderPath);
+                
+                state.handLandmarker = await admission.HandLandmarker.createFromOptions(vision, {
+                    baseOptions: {
+                        modelAssetPath: CONFIG.modelAssetPath,
+                        delegate: "GPU"
+                    },
+                    runningMode: "VIDEO",
+                    numHands: 2
+                });
+
+                // Request specific hardware parameters for perfect 16:9 delivery layout architectures
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        aspectRatio: 1.777777778
+                    },
+                    audio: false
+                });
+
+                DOM.webcam.srcObject = stream;
+                DOM.webcam.addEventListener('loadeddata', startTrackingLoop);
+
+            } catch (error) {
+                throw new Error("Hardware acceleration or device capture failure configuration nodes.");
+            }
+        }
+
+        function startTrackingLoop() {
+            // Clean interface deployment layers
+            DOM.loadingOverlay.classList.remove('active');
+            state.running = true;
+            
+            // Adjust local canvas structures to map exactly to source active video parameters
+            DOM.trackingCanvas.width = DOM.webcam.videoWidth;
+            DOM.trackingCanvas.height = DOM.webcam.videoHeight;
+
+            requestAnimationFrame(processTrackingFrame);
+        }
+
+        /**
+         * CORE RUNTIME FRAME-PROCESSING EVALUATION PARSER ENGINE (60 FPS GOAL)
+         */
+        function processTrackingFrame(now) {
+            if (!state.running) return;
+
+            // Track operational processing metrics (FPS Engine calculations)
+            calculateFpsMetrics(now);
+
+            if (DOM.webcam.currentTime !== state.lastVideoTime) {
+                state.lastVideoTime = DOM.webcam.currentTime;
+
+                // Process Landmarker analytics inside the WebRTC frame feed
+                if (state.handLandmarker) {
+                    const trackingResults = state.handLandmarker.detectForVideo(DOM.webcam, now);
+                    renderTrackingGraphics(trackingResults);
+                }
+            }
+
+            requestAnimationFrame(processTrackingFrame);
+        }
+
+        function calculateFpsMetrics(now) {
+            state.frameCount++;
+            if (!state.lastFpsUpdate) state.lastFpsUpdate = now;
+
+            const elapsed = now - state.lastFpsUpdate;
+            if (elapsed >= 1000) {
+                state.fps = Math.round((state.frameCount * 1000) / elapsed);
+                DOM.fpsCounter.textContent = state.fps;
+                state.frameCount = 0;
+                state.lastFpsUpdate = now;
+            }
+        }
+
+        /**
+         * SKEL-VECTOR RENDERING ENGINE WITH GLOW EFFECT AND FINGER TRAILS
+         */
+        function renderTrackingGraphics(results) {
+            ctx.clearRect(0, 0, DOM.trackingCanvas.width, DOM.trackingCanvas.height);
+            
+            let gestureDetectedThisFrame = "NONE";
+            const tipJointIndices = [4, 8, 12, 16, 20]; // Thumb, Index, Middle, Ring, Pinky Tip Joints
+
+            if (results.landmarks && results.landmarks.length > 0) {
+                for (let h = 0; h < results.landmarks.length; h++) {
+                    const landmarks = results.landmarks[h];
+
+                    // Draw skeleton line networks
+                    drawSkeletonConnections(landmarks);
+
+                    // Draw glowing joint nodes
+                    for (let i = 0; i < landmarks.length; i++) {
+                        const lm = landmarks[i];
+                        const cx = lm.x * DOM.trackingCanvas.width;
+                        const cy = lm.y * DOM.trackingCanvas.height;
+
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+                        ctx.fillStyle = "#ffffff";
+                        ctx.shadowBlur = 12;
+                        ctx.shadowColor = "#ffffff";
+                        ctx.fill();
+                    }
+                    ctx.shadowBlur = 0; // Flush node buffers
+
+                    // Append historical spatial trails on key fingertip junctions
+                    for (let t = 0; t < tipJointIndices.length; t++) {
+                        const tipIdx = tipJointIndices[t];
+                        const tipLm = landmarks[tipIdx];
+                        state.fingerTrails[t].push({
+                            x: tipLm.x * DOM.trackingCanvas.width,
+                            y: tipLm.y * DOM.trackingCanvas.height
+                        });
+
+                        if (state.fingerTrails[t].length > CONFIG.trailMaxLength) {
+                            state.fingerTrails[t].shift();
+                        }
+                    }
+
+                    // Process lightweight algorithmic evaluation rules for gesture states
+                    gestureDetectedThisFrame = evaluateHeuristicGesture(landmarks);
+                }
+            } else {
+                // Decay finger trails smoothly when hands exit visual space field
+                for (let t = 0; t < state.fingerTrails.length; t++) {
+                    if (state.fingerTrails[t].length > 0) state.fingerTrails[t].shift();
+                }
+            }
+
+            // Draw historical decaying trail buffers on fingertips
+            renderFingerTrails();
+
+            // Evaluate state outputs and deploy UI animation adjustments
+            handleGestureStateChanges(gestureDetectedThisFrame);
+        }
+
+        /**
+         * MAP TRK CONNS
+         */
+        function drawSkeletonConnections(landmarks) {
+            const connections = [
+                [0,1], [1,2], [2,3], [3,4], // Thumb
+                [0,5], [5,6], [6,7], [7,8], // Index
+                [9,10], [10,11], [11,12],   // Middle
+                [13,14], [14,15], [15,16],  // Ring
+                [0,17], [17,18], [18,19], [19,20], // Pinky
+                [5,9], [9,13], [13,17]      // Palm Base Connectors
+            ];
+
+            ctx.beginPath();
+            for (let pair of connections) {
+                const start = landmarks[pair[0]];
+                const end = landmarks[pair[1]];
+                ctx.moveTo(start.x * DOM.trackingCanvas.width, start.y * DOM.trackingCanvas.height);
+                ctx.lineTo(end.x * DOM.trackingCanvas.width, end.y * DOM.trackingCanvas.height);
+            }
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+            ctx.stroke();
+        }
+
+        /**
+         * RENDER FINGER TRAILS W/ DECAYING ALPHA
+         */
+        function renderFingerTrails() {
+            for (let t = 0; t < state.fingerTrails.length; t++) {
+                const trail = state.fingerTrails[t];
+                if (trail.length < 2) continue;
+
+                ctx.beginPath();
+                ctx.moveTo(trail[0].x, trail[0].y);
+                for (let i = 1; i < trail.length; i++) {
+                    ctx.lineTo(trail[i].x, trail[i].y);
+                }
+                
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+                ctx.stroke();
+
+                // Advanced glowing head tip execution matrix
+                const head = trail[trail.length - 1];
+                ctx.beginPath();
+                ctx.arc(head.x, head.y, 8, 0, Math.PI * 2);
+                ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = "#ffffff";
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        /**
+         * INVARIANT LIGHTWEIGHT LOGICAL HEURISTIC GESTURE EVALUATION
+         */
+        function evaluateHeuristicGesture(lm) {
+            // Check expansion profiles based on specific positional distance ratios
+            // Compares distance from base joints to tips
+            const isExtended = (tip, pip, mcp) => {
+                return Math.hypot(lm[tip].x - lm[mcp].x, lm[tip].y - lm[mcp].y) > 
+                       Math.hypot(lm[pip].x - lm[mcp].x, lm[pip].y - lm[mcp].y);
+            };
+
+            const indexExt  = isExtended(8, 6, 5);
+            const middleExt = isExtended(12, 10, 9);
+            const ringExt   = isExtended(16, 14, 13);
+            const pinkyExt  = isExtended(20, 18, 17);
+
+            // Special thumb processing based on lateral horizontal variance relative to palm orientation
+            const thumbExt = Math.abs(lm[4].x - lm[9].x) > Math.abs(lm[2].x - lm[9].x);
+
+            // 1. PEACE SIGN DETECT ROUTE (✌): Index + Middle up, Ring + Pinky down
+            if (indexExt && middleExt && !ringExt && !pinkyExt) {
+                return "PEACE DETECTED";
+            }
+            // 2. THUMBS UP ROUTE (👍): Thumb up, all others down
+            if (thumbExt && !indexExt && !middleExt && !ringExt && !pinkyExt) {
+                // Ensure the thumb is pointing upward vertically relative to the wrist
+                if (lm[4].y < lm[3].y) return "THUMBS UP";
+            }
+            // 3. FIST DETECT ROUTE (👊): All fingers folded down
+            if (!indexExt && !middleExt && !ringExt && !pinkyExt && !thumbExt) {
+                return "FIST";
+            }
+            // 4. OPEN HAND ROUTE (✋): All fingers extended up
+            if (indexExt && middleExt && ringExt && pinkyExt) {
+                return "OPEN HAND";
+            }
+            // 5. INDEX POINT ROUTE (☝): Only Index up, all others folded down
+            if (indexExt && !middleExt && !ringExt && !pinkyExt) {
+                return "INDEX POINT";
+            }
+
+            return "NONE";
+        }
+
+        /**
+         * STATE-MACHINE EFFECT TRANSITION HANDLERS (CINEMATIC BLUR DEPLOYMENT)
+         */
+        function handleGestureStateChanges(currentGesture) {
+            if (currentGesture === "PEACE DETECTED") {
+                DOM.hudGestureText.textContent = "PEACE DETECTED";
+                DOM.hudGestureText.classList.add('detected');
+                DOM.hudStatusText.textContent = "CAMERA BLURRED";
+                DOM.hudStatusText.style.color = "#ff3355";
+                
+                // Triggers ultra-premium cinematic smooth GPU blur via CSS transitions (300ms)
+                DOM.camWrapper.classList.add('cinema-blur');
+            } else {
+                DOM.hudGestureText.textContent = currentGesture;
+                if (currentGesture === "NONE") {
+                    DOM.hudGestureText.classList.remove('detected');
+                } else {
+                    DOM.hudGestureText.classList.add('detected');
+                }
+                
+                DOM.hudStatusText.textContent = "AI ACTIVE";
+                DOM.hudStatusText.style.color = "#00ffaa";
+                
+                // Smoothly clear CSS cinematic filters over exactly 300ms
+                DOM.camWrapper.classList.remove('cinema-blur');
+            }
+        }
+
+        // Initialize Background Elements upon asset loading cycles
+        initBackground();
+        animateBackground();
+    </script>
+</body>
+</html>
